@@ -1,0 +1,249 @@
+#include <movement.cpp>
+#include <Servo.h>
+
+#define FRONT 1 // if ever change these values(pls dont), change legs function in body
+#define MID   2
+#define BACK  3
+#define HIP   3
+#define KNEE  5
+#define ANKLE 7
+#define LEFT  -1
+#define RIGHT 1
+
+#define SERVO_SPEED 3 // milliseconds per degree: currently placeholder
+
+
+
+// custom servo wrapper class
+class Joint {
+  public:
+    int id; 
+    int rangeDown; 
+    int rangeUp; // need to know the actual mobility range of the servo
+    double prev; // storing the last sent signal
+    int flatAngle;
+    Servo servo;
+
+    Joint(int id, int info[4])
+    : id(id), rangeDown(info[3]), rangeUp(info[2]), flatAngle(info[1]) {
+        servo.attach(info[0]);
+        prev = 0; // can change this doesn't matter
+        // write(flatAngle);
+    }
+
+    int write(double angle) {
+        angle = flatAngle + angle;
+        if (angle < rangeDown) {
+            angle = rangeDown;
+        }
+        if (angle > rangeUp) {
+            angle = rangeUp;
+        }
+        servo.write(angle);
+        int distance = abs(angle - prev);
+        prev = angle;
+
+        return distance * SERVO_SPEED;
+    }
+};
+
+class Leg {
+  public:
+    int id;
+    Joint *hip;
+    Joint *knee;
+    Joint *ankle;
+    int planeAngle = 0; //from horizontal
+    pos defaultPos =  pos(0, 6.4, -5.9); // centre of gcircle
+    int previous = 0;
+
+
+    Leg(int id, int info[3][4])
+    : id(id) {
+        hip = new Joint(id*HIP, info[0]);
+        knee = new Joint(id*KNEE, info[1]);
+        ankle = new Joint(id*ANKLE, info[2]);
+        
+        if (abs(id) == FRONT) {
+            planeAngle = 60;
+        } else if (abs(id) == BACK) {
+            planeAngle = -60;
+        }
+    }
+
+    int goTo(pos dest) {
+        // if (id < 0) {
+        //     dest = pos(-dest.x, -dest.y, dest.z);
+        // }
+        pos angles = InvK::getAngles(dest);
+        angles.x = -angles.x;
+
+        int ret = hip->write(angles.x);
+        int ret1 = knee->write(angles.y);
+        int ret2 = ankle->write(angles.z);
+
+        ret = max(ret1, ret);
+        ret = max(ret, ret2);
+
+        return ret;
+    }
+
+    int gCircleTo(int angle, int z = 0) {
+        int multiplier = 1;
+        if (id < 0) {
+            angle -=180;
+            multiplier = -1;
+        }
+        angle += multiplier*planeAngle;
+        while (angle <= -180) angle += 360;
+        while (angle > 180) angle -= 360;
+        previous = angle;
+        return goTo(defaultPos + pos(G_CIRCLE_RADIUS*cos((PI/180)*angle),G_CIRCLE_RADIUS*sin((PI/180)*angle),z));
+    }
+
+    int goToRel(pos dest) {
+        return goTo(defaultPos + dest);
+    }
+
+    int gCircleRel(int angle) {
+        return gCircleTo(angle + previous);
+    }
+
+    int stance() {
+        return goTo(defaultPos);
+    }
+};
+
+class Body {
+  public:
+    Leg *legs[7]; //one spot lost in translation :()
+    
+    Body() {} // stupid platformio being baka
+
+    // LEFT FRONT MID BACK THEN RIGHT
+    Body(int info[6][3][4]) {
+        legs[ind(FRONT*LEFT)]   =   new Leg(FRONT*LEFT, info[0]);
+        legs[ind(MID*LEFT)]     =   new Leg(MID*LEFT, info[1]);
+        legs[ind(BACK*LEFT)]    =   new Leg(BACK*LEFT, info[2]);
+        legs[ind(FRONT*RIGHT)]  =   new Leg(FRONT*RIGHT, info[5]);
+        legs[ind(MID*RIGHT)]    =   new Leg(MID*RIGHT, info[4]);
+        legs[ind(BACK*RIGHT)]   =   new Leg(BACK*RIGHT, info[3]);
+    }
+
+    static int ind(int id) {
+        return id += RIGHT*BACK;
+    }
+
+    Leg *leg(int id) {
+      return legs[ind(id)];
+    }
+
+    // DOES NOT WORK :(
+    void swingAround(int rotations = 5) {
+        int increment = 5;
+        double heights[6] = {1, -1, 0.5, -0.5, 0.25, -0.25};
+        for (int i = 0, j = 0; i < 360*rotations ; i += increment, j++) {
+            int wait = max(leg(FRONT*LEFT)->gCircleTo(0 + i, heights[j%6]), leg(BACK*RIGHT)->gCircleTo(0 + i, heights[(j+1)%6]));
+            wait = max(leg(MID*LEFT)->gCircleTo(20 + i, heights[(j+2)%6]), leg(MID*RIGHT)->gCircleTo(20 + i, heights[(j+3)%6]));
+            wait = max(leg(BACK*LEFT)->gCircleTo(40 + i , heights[(j+4)%6]), leg(FRONT*RIGHT)->gCircleTo(40 + i , heights[(j+5)%6]));
+            delay(wait);
+        }
+    }
+
+    void tripodgait(int angle = 0) {
+        Leg *tripods[2][3] =   {{leg(FRONT*RIGHT), leg(BACK*RIGHT), leg(MID*LEFT)},
+                                {leg(FRONT*LEFT), leg(BACK*LEFT), leg(MID*RIGHT)}
+                            };
+        int lead = 0;
+        for (int i = 0; i < 2*1; i++) {
+            int wait = 0;
+            int wait1 = 0;
+            for (int j = 0; j < 3; j++) {
+                wait = tripods[lead][j]->goToRel(pos(0, 0, 5));
+                wait1 = tripods[1-lead][j]->stance();
+                wait = max(wait, wait1);
+            }
+            delay(wait);
+            wait = 0;
+            wait1 = 0;
+            for (int j = 0; j < 3; j++) {
+                wait = tripods[lead][j]->gCircleTo(angle);
+                wait1 = tripods[1-lead][j]->gCircleTo(angle - 180);
+                wait = max(wait, wait1);
+            }
+            delay(wait);
+            lead = 1 - lead;
+
+        }
+    }
+
+    void tripodturn(boolean left) {
+        double angle = 180;
+        if (left) {
+            angle = 0;
+        }
+        Leg *tripods[2][3] =   {{leg(FRONT*RIGHT), leg(BACK*RIGHT), leg(MID*LEFT)},
+                                {leg(FRONT*LEFT), leg(BACK*LEFT), leg(MID*RIGHT)}
+                            };
+        int lead = 0;
+        for (int i = 0; i < 2*1; i++) {
+            int wait = 0;
+            int wait1 = 0;
+            for (int j = 0; j < 3; j++) {
+                wait = tripods[lead][j]->goToRel(pos(0, 0, 5));
+                wait1 = tripods[1-lead][j]->stance();
+                wait = max(wait, wait1);
+            }
+            delay(wait);
+            wait = 0;
+            wait1 = 0;
+            for (int j = 0; j < 2; j++) {
+                wait = tripods[lead][j]->gCircleTo(angle);
+                wait1 = tripods[1-lead][j]->gCircleTo(angle-180);
+                wait = max(wait, wait1);
+            }
+            wait1 = tripods[lead][2]->gCircleTo(angle-180);
+            wait = max(wait, wait1);
+            wait1 = tripods[1-lead][2]->gCircleTo(angle);
+            wait = max(wait1, wait);
+            delay(wait);
+            lead = 1 - lead;
+
+        }
+    }
+
+    void wave_gait(int angle = 0) {
+        Leg *wave[6] = {leg(FRONT*RIGHT), leg(MID*RIGHT), leg(BACK*RIGHT), 
+                        leg(BACK*LEFT), leg(MID*LEFT), leg(FRONT*LEFT)}; 
+        for (int i = 0; i < 6; i++) {
+            delay(wave[i]->goToRel(pos(0,0,5)));
+            int wait = wave[i]->gCircleTo(180 - angle);
+            int wait1 = 0;
+            for (int j = 0; j < 6; j++) {
+                if (wave[j] != wave[i]) {
+                    int current = wave[j]->gCircleRel(-180/6);
+                    wait1 = max(current, wait1);
+                }
+            }
+            wait = max(wait, wait1);
+            delay(wait);
+        }
+    }
+
+    void stance() {
+        int ret = leg(FRONT*RIGHT)->stance();
+        int ret1 = leg(MID*RIGHT)->stance();
+        int ret2 = leg(BACK*RIGHT)->stance();
+        int ret3 = leg(FRONT*LEFT)->stance();
+        int ret4 = leg(MID*LEFT)->stance();
+        int ret5 = leg(BACK*LEFT)->stance();
+        ret = max(ret, ret1);
+        ret = max(ret, ret2);
+        ret = max(ret, ret3);
+        ret = max(ret, ret4);
+        ret = max(ret, ret5);
+
+        delay(ret);
+    }
+
+};
