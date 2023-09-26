@@ -181,7 +181,6 @@ void loop() {
       // delay(1000);
     }
 
-
 }
 
 void startuplights(FastLED_NeoPixel<NUM_LEDS, DATA_PIN, NEO_GRB> strip) {

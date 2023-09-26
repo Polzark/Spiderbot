@@ -1,5 +1,10 @@
 #include <movement.cpp>
-#include <Servo.h>
+#include <Arduino.h>
+
+#define DISABLE_COMPLEX_FUNCTIONS
+#define ENABLE_EASE_CUBIC
+
+#include <ServoEasing.h>
 
 #define FRONT 1 // if ever change these values(pls dont), change legs function in body
 #define MID   2
@@ -11,8 +16,7 @@
 #define RIGHT 1
 
 #define SERVO_SPEED 3 // milliseconds per degree: currently placeholder
-
-
+#define ANGLE_SPEED 15
 
 // custom servo wrapper class
 class Joint {
@@ -22,7 +26,7 @@ class Joint {
     int rangeUp; // need to know the actual mobility range of the servo
     double prev; // storing the last sent signal
     int flatAngle;
-    Servo servo;
+    ServoEasing servo;
 
     Joint(int id, int info[4])
     : id(id), rangeDown(info[3]), rangeUp(info[2]), flatAngle(info[1]) {
@@ -39,7 +43,8 @@ class Joint {
         if (angle > rangeUp) {
             angle = rangeUp;
         }
-        servo.write(angle);
+        servo.setEasingType(EASE_CUBIC_IN_OUT);
+        servo.setEaseTo(angle);
         int distance = abs(angle - prev);
         prev = angle;
 
@@ -101,6 +106,14 @@ class Leg {
         return goTo(defaultPos + pos(G_CIRCLE_RADIUS*cos((PI/180)*angle),G_CIRCLE_RADIUS*sin((PI/180)*angle),z));
     }
 
+    int gCircleTurn(int angle, int z = 0) {
+        angle += planeAngle;
+        while (angle <= -180) angle += 360;
+        while (angle > 180) angle -= 360;
+        previous = angle;
+        return goTo(defaultPos + pos(G_CIRCLE_RADIUS*cos((PI/180)*angle),G_CIRCLE_RADIUS*sin((PI/180)*angle),z));
+    }
+
     int goToRel(pos dest) {
         return goTo(defaultPos + dest);
     }
@@ -146,7 +159,7 @@ class Body {
             int wait = max(leg(FRONT*LEFT)->gCircleTo(0 + i, heights[j%6]), leg(BACK*RIGHT)->gCircleTo(0 + i, heights[(j+1)%6]));
             wait = max(leg(MID*LEFT)->gCircleTo(20 + i, heights[(j+2)%6]), leg(MID*RIGHT)->gCircleTo(20 + i, heights[(j+3)%6]));
             wait = max(leg(BACK*LEFT)->gCircleTo(40 + i , heights[(j+4)%6]), leg(FRONT*RIGHT)->gCircleTo(40 + i , heights[(j+5)%6]));
-            delay(wait);
+            updateAndWaitForAllServosToStop();
         }
     }
 
@@ -163,7 +176,7 @@ class Body {
                 wait1 = tripods[1-lead][j]->stance();
                 wait = max(wait, wait1);
             }
-            delay(wait);
+            synchronizeAllServosStartAndWaitForAllServosToStop();
             wait = 0;
             wait1 = 0;
             for (int j = 0; j < 3; j++) {
@@ -171,7 +184,8 @@ class Body {
                 wait1 = tripods[1-lead][j]->gCircleTo(angle - 180);
                 wait = max(wait, wait1);
             }
-            delay(wait);
+            synchronizeAllServosStartAndWaitForAllServosToStop();
+            // delay(wait);
             lead = 1 - lead;
 
         }
@@ -197,22 +211,18 @@ class Body {
             delay(wait);
             wait = 0;
             wait1 = 0;
-            for (int j = 0; j < 2; j++) {
-                wait = tripods[lead][j]->gCircleTo(angle);
-                wait1 = tripods[1-lead][j]->gCircleTo(angle-180);
+            for (int j = 0; j < 3; j++) {
+                wait = tripods[lead][j]->gCircleTurn(angle);
+                wait1 = tripods[1-lead][j]->gCircleTurn(angle - 180);
                 wait = max(wait, wait1);
             }
-            wait1 = tripods[lead][2]->gCircleTo(angle-180);
-            wait = max(wait, wait1);
-            wait1 = tripods[1-lead][2]->gCircleTo(angle);
-            wait = max(wait1, wait);
             delay(wait);
             lead = 1 - lead;
 
         }
     }
 
-    void wave_gait(int angle = 0) {
+    void wavegait(int angle = 0) {
         Leg *wave[6] = {leg(FRONT*RIGHT), leg(MID*RIGHT), leg(BACK*RIGHT), 
                         leg(BACK*LEFT), leg(MID*LEFT), leg(FRONT*LEFT)}; 
         for (int i = 0; i < 6; i++) {
@@ -242,8 +252,8 @@ class Body {
         ret = max(ret, ret3);
         ret = max(ret, ret4);
         ret = max(ret, ret5);
-
-        delay(ret);
+        updateAndWaitForAllServosToStop();
+        // delay(ret);
     }
 
 };
