@@ -4,7 +4,7 @@
 #define DISABLE_COMPLEX_FUNCTIONS
 #define ENABLE_EASE_CUBIC
 
-#include <ServoEasing.h>
+#include <ServoEasing.hpp>
 
 #define FRONT 1 // if ever change these values(pls dont), change legs function in body
 #define MID   2
@@ -31,6 +31,7 @@ class Joint {
     Joint(int id, int info[4])
     : id(id), rangeDown(info[3]), rangeUp(info[2]), flatAngle(info[1]) {
         servo.attach(info[0]);
+        setSpeedForAllServos(360);
         prev = 0; // can change this doesn't matter
         // write(flatAngle);
     }
@@ -44,7 +45,7 @@ class Joint {
             angle = rangeUp;
         }
         servo.setEasingType(EASE_CUBIC_IN_OUT);
-        servo.setEaseTo(angle);
+        servo.setEaseTo((float)angle);
         int distance = abs(angle - prev);
         prev = angle;
 
@@ -125,6 +126,10 @@ class Leg {
     int stance() {
         return goTo(defaultPos);
     }
+
+    int stance() {
+        return goTo(defaultPos + pos(0,5,0));
+    }
 };
 
 class Body {
@@ -200,15 +205,15 @@ class Body {
                                 {leg(FRONT*LEFT), leg(BACK*LEFT), leg(MID*RIGHT)}
                             };
         int lead = 0;
-        for (int i = 0; i < 2*1; i++) {
+        for (int i = 0; i < 2*10; i++) {
             int wait = 0;
             int wait1 = 0;
             for (int j = 0; j < 3; j++) {
                 wait = tripods[lead][j]->goToRel(pos(0, 0, 5));
-                wait1 = tripods[1-lead][j]->stance();
+                wait1 = tripods[1-lead][j]->goToRel(pos(0, 0, 1));
                 wait = max(wait, wait1);
             }
-            delay(wait);
+            synchronizeAllServosStartAndWaitForAllServosToStop();
             wait = 0;
             wait1 = 0;
             for (int j = 0; j < 3; j++) {
@@ -216,7 +221,7 @@ class Body {
                 wait1 = tripods[1-lead][j]->gCircleTurn(angle - 180);
                 wait = max(wait, wait1);
             }
-            delay(wait);
+            synchronizeAllServosStartAndWaitForAllServosToStop();
             lead = 1 - lead;
 
         }
