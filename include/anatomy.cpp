@@ -31,7 +31,7 @@ class Joint {
     Joint(int id, int info[4])
     : id(id), rangeDown(info[3]), rangeUp(info[2]), flatAngle(info[1]) {
         servo.attach(info[0]);
-        setSpeedForAllServos(360);
+        setSpeedForAllServos(500);
         prev = 0; // can change this doesn't matter
         // write(flatAngle);
     }
