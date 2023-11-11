@@ -1,6 +1,7 @@
 #include <Arduino.h>
 
 #define G_CIRCLE_RADIUS 3.5 // in cm
+#define BOT_RADIUS 6.4 // DEFINITELY NOT IN CM (despite definitely being in cm??)
 
 struct pos
 {

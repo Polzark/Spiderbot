@@ -180,10 +180,10 @@ void loop() {
     //   head.write(max(60, min(120, 180 -heading)));
     //     bot.tripodgait(90 - heading);
     //   // delay(1000);
-    // }
-    bot.tripodturn(true);
+    //}
+    bot.tripodturnonspot(true);
     Serial.print("turn");
-    delay(1000);
+    //delay(1000);
  
 }
 
