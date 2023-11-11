@@ -181,7 +181,7 @@ void loop() {
     //     bot.tripodgait(90 - heading);
     //   // delay(1000);
     //}
-    bot.tripodturnonspot(true);
+    bot.tripodgait(90);
     Serial.print("turn");
     //delay(1000);
  

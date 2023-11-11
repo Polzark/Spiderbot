@@ -265,6 +265,27 @@ class Body {
         }
     }
 
+    void waveturn(int angle = 0) {
+        Leg *wave[6] = {leg(FRONT*RIGHT), leg(MID*RIGHT), leg(BACK*RIGHT), 
+                        leg(BACK*LEFT), leg(MID*LEFT), leg(FRONT*LEFT)}; 
+        int wait, wait1, wait2;
+
+        for (int i = 0; i < 2*10; i++) {
+            for (int j = 0; j < 6; j++) {
+                wait = wave[j]->legTurn(-angle);
+            }
+            synchronizeAllServosStartAndWaitForAllServosToStop();
+            for (int j = 0; j < 6; j++) {
+                wait = wave[j]->raiseLeg();
+                synchronizeAllServosStartAndWaitForAllServosToStop();
+                wait1 = wave[j]->legTurn(angle);
+                synchronizeAllServosStartAndWaitForAllServosToStop();
+                wait2 = wave[j]->lowerLeg();
+                synchronizeAllServosStartAndWaitForAllServosToStop();
+            }
+        }
+    }
+
     void stance() {
         int ret = leg(FRONT*RIGHT)->stance();
         int ret1 = leg(MID*RIGHT)->stance();
@@ -281,11 +302,7 @@ class Body {
         // delay(ret);
     }
 
-    void tripodturnonspot(bool left) {
-        double angle = 15;
-        if (!left) {
-            angle = -15;
-        }
+    void tripodturnonspot(double angle = 15) {
         Leg *tripods[2][3] =   {{leg(FRONT*RIGHT), leg(BACK*RIGHT), leg(MID*LEFT)},
                                 {leg(FRONT*LEFT), leg(BACK*LEFT), leg(MID*RIGHT)}
                             };
