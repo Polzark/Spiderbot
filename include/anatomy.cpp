@@ -18,6 +18,12 @@
 #define SERVO_SPEED 3 // milliseconds per degree: currently placeholder
 #define ANGLE_SPEED 15
 
+// Ellipse constants
+#define ELLIPSE_SPEED 1
+#define LR_ELLIPSE G_CIRCLE_RADIUS
+#define SR_ELLIPSE 3
+
+#define TURNING_ANGLE 9
 // custom servo wrapper class
 class Joint {
   public:
@@ -60,8 +66,9 @@ class Leg {
     Joint *knee;
     Joint *ankle;
     int planeAngle = 0; //from horizontal
-    pos defaultPos =  pos(0, 6.4, -5.9); // centre of gcircle
+    pos defaultPos =  pos(0, 6.4, -13); // centre of gcircle
     int previous = 0;
+    int radius = 8.9;
 
 
     Leg(int id, int info[3][4])
@@ -123,12 +130,32 @@ class Leg {
         return gCircleTo(angle + previous);
     }
 
-    int stance() {
-        return goTo(defaultPos);
+    // ellipseTo takes in time and direction and returns the position on the ellipse
+    void ellipseTo(double time, int angle) {
+        int multiplier = 1;
+        if (id < 0) {
+            angle -=180;
+            multiplier = -1;
+        }
+        angle += multiplier*planeAngle;
+        while (angle <= -180) angle += 360;
+        while (angle > 180) angle -= 360;
+
+        double t = time * PI/500 * ELLIPSE_SPEED;
+        // calculat z coordinate and x + y coordinates using 2d parametric equation
+        double z = SR_ELLIPSE * cos(t);
+        double xAndY = LR_ELLIPSE * sin(t);
+        // then use x + y coordinate and angle to calculate x and y coordinates
+        double x = xAndY * cos(angle);
+        double y = xAndY * -sin(angle);
+        // return pos(x,y,z)
+        pos coordinate = pos(x, y, z);
+        // then call goToRel
+        goToRel(coordinate);
     }
 
     int stance() {
-        return goTo(defaultPos + pos(0,5,0));
+        return goTo(defaultPos + pos(0, 5, 0));
     }
 };
 
@@ -173,26 +200,17 @@ class Body {
                                 {leg(FRONT*LEFT), leg(BACK*LEFT), leg(MID*RIGHT)}
                             };
         int lead = 0;
-        for (int i = 0; i < 2*1; i++) {
-            int wait = 0;
-            int wait1 = 0;
-            for (int j = 0; j < 3; j++) {
-                wait = tripods[lead][j]->goToRel(pos(0, 0, 5));
-                wait1 = tripods[1-lead][j]->stance();
-                wait = max(wait, wait1);
-            }
-            synchronizeAllServosStartAndWaitForAllServosToStop();
-            wait = 0;
-            wait1 = 0;
-            for (int j = 0; j < 3; j++) {
-                wait = tripods[lead][j]->gCircleTo(angle);
-                wait1 = tripods[1-lead][j]->gCircleTo(angle - 180);
-                wait = max(wait, wait1);
-            }
-            synchronizeAllServosStartAndWaitForAllServosToStop();
-            // delay(wait);
-            lead = 1 - lead;
+        double start = millis();
+        double t = millis();
 
+        while(t > 0) {
+            double time = t - start;
+            for (int j = 0; j < 3; j++) {
+                tripods[lead][j]->ellipseTo(time, angle);
+                tripods[1-lead][j]->ellipseTo(time + 500/ELLIPSE_SPEED, angle);
+            }
+            synchronizeAllServosStartAndWaitForAllServosToStop();
+            t = millis();
         }
     }
 
@@ -225,6 +243,7 @@ class Body {
             lead = 1 - lead;
 
         }
+        8.9 + 6.4;
     }
 
     void wavegait(int angle = 0) {
