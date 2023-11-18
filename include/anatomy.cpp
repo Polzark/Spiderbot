@@ -21,8 +21,8 @@
 // custom servo wrapper class
 class Joint {
   public:
-    int id; 
-    int rangeDown; 
+    int id;
+    int rangeDown;
     int rangeUp; // need to know the actual mobility range of the servo
     double prev; // storing the last sent signal
     int flatAngle;
@@ -69,7 +69,7 @@ class Leg {
         hip = new Joint(id*HIP, info[0]);
         knee = new Joint(id*KNEE, info[1]);
         ankle = new Joint(id*ANKLE, info[2]);
-        
+
         if (abs(id) == FRONT) {
             planeAngle = 60;
         } else if (abs(id) == BACK) {
@@ -127,15 +127,14 @@ class Leg {
         return goTo(defaultPos);
     }
 
-    int stance() {
-        return goTo(defaultPos + pos(0,5,0));
-    }
+    // int stance() {
+    //     return goTo(defaultPos + pos(0,5,0));
+    // }
 };
 
 class Body {
   public:
-    Leg *legs[7]; //one spot lost in translation :()
-    
+    Leg *legs[7]; //one spot lost in translation :() // If I find who talks like this I'm going to break their legs ;3
     Body() {} // stupid platformio being baka
 
     // LEFT FRONT MID BACK THEN RIGHT
@@ -205,7 +204,7 @@ class Body {
                                 {leg(FRONT*LEFT), leg(BACK*LEFT), leg(MID*RIGHT)}
                             };
         int lead = 0;
-        for (int i = 0; i < 2*10; i++) {
+        for (int i = 0; i < 2; i++) {
             int wait = 0;
             int wait1 = 0;
             for (int j = 0; j < 3; j++) {
@@ -228,8 +227,8 @@ class Body {
     }
 
     void wavegait(int angle = 0) {
-        Leg *wave[6] = {leg(FRONT*RIGHT), leg(MID*RIGHT), leg(BACK*RIGHT), 
-                        leg(BACK*LEFT), leg(MID*LEFT), leg(FRONT*LEFT)}; 
+        Leg *wave[6] = {leg(FRONT*RIGHT), leg(MID*RIGHT), leg(BACK*RIGHT),
+                        leg(BACK*LEFT), leg(MID*LEFT), leg(FRONT*LEFT)};
         for (int i = 0; i < 6; i++) {
             delay(wave[i]->goToRel(pos(0,0,5)));
             int wait = wave[i]->gCircleTo(180 - angle);
@@ -259,6 +258,22 @@ class Body {
         ret = max(ret, ret5);
         updateAndWaitForAllServosToStop();
         // delay(ret);
+    }
+
+    void servoChecks() {
+        // moves all servos at the same leg position at the same time
+        int anatomyOrder [6] = { FRONT*RIGHT, MID*RIGHT, BACK*RIGHT, FRONT*LEFT, MID*LEFT, BACK*LEFT};
+
+        for (int i = 0; i < 6; i++) {
+            leg(anatomyOrder[i])->ankle->write(-20);
+        }
+        delay(1000);
+        for (int i = 0; i < 6; i++) {
+            leg(anatomyOrder[i])->ankle->write(20);
+        }
+        delay(1000);
+
+
     }
 
 };

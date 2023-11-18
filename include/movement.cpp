@@ -57,7 +57,6 @@ class InvK {
         }
 
         eha = asin(temp2);
-        
 
         if (y == 0) {
             if (x > 0) {
@@ -78,7 +77,7 @@ class InvK {
         }
 
         theta3 = (180/PI)*eah - 180;
-        
+
         return pos(theta1, theta2, theta3);
     }
 };
