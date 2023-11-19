@@ -31,6 +31,7 @@ class Joint {
     Joint(int id, int info[4])
     : id(id), rangeDown(info[3]), rangeUp(info[2]), flatAngle(info[1]) {
         servo.attach(info[0]);
+        //servo.setSpeed(1000/SERVO_SPEED);
         setSpeedForAllServos(360);
         prev = 0; // can change this doesn't matter
         // write(flatAngle);
@@ -61,6 +62,7 @@ class Leg {
     Joint *ankle;
     int planeAngle = 0; //from horizontal
     pos defaultPos =  pos(0, 6.4, -5.9); // centre of gcircle
+    pos previousPos = pos(0, 0, 0);
     int previous = 0;
 
 
@@ -90,7 +92,7 @@ class Leg {
 
         ret = max(ret1, ret);
         ret = max(ret, ret2);
-
+        previousPos = dest;
         return ret;
     }
 
@@ -127,6 +129,24 @@ class Leg {
         return goTo(defaultPos);
     }
 
+    int legTurn(int angle) {
+        //angle += planeAngle;
+        while (angle <= -180) angle += 360;
+        while (angle > 180) angle -= 360;
+        return goTo(pos(BOT_RADIUS*sin((PI/180)*angle), BOT_RADIUS*cos((PI/180)*angle), previousPos.z));
+    }
+
+    int lowerLeg() {
+        double previousToBot = tanh(previousPos.y/previousPos.x);
+        return goTo(pos(BOT_RADIUS*sin((PI/180)*previousToBot), BOT_RADIUS*cos((PI/180)*previousToBot), defaultPos.z));
+    }
+
+    int raiseLeg() {
+        double previousToBot = tanh(previousPos.y/previousPos.x);
+        return goTo(pos(BOT_RADIUS*sin((PI/180)*previousToBot), BOT_RADIUS*cos((PI/180)*previousToBot), defaultPos.z + 5));
+    }
+
+
     // int stance() {
     //     return goTo(defaultPos + pos(0,5,0));
     // }
@@ -156,16 +176,16 @@ class Body {
     }
 
     // DOES NOT WORK :(
-    void swingAround(int rotations = 5) {
-        int increment = 5;
-        double heights[6] = {1, -1, 0.5, -0.5, 0.25, -0.25};
-        for (int i = 0, j = 0; i < 360*rotations ; i += increment, j++) {
-            int wait = max(leg(FRONT*LEFT)->gCircleTo(0 + i, heights[j%6]), leg(BACK*RIGHT)->gCircleTo(0 + i, heights[(j+1)%6]));
-            wait = max(leg(MID*LEFT)->gCircleTo(20 + i, heights[(j+2)%6]), leg(MID*RIGHT)->gCircleTo(20 + i, heights[(j+3)%6]));
-            wait = max(leg(BACK*LEFT)->gCircleTo(40 + i , heights[(j+4)%6]), leg(FRONT*RIGHT)->gCircleTo(40 + i , heights[(j+5)%6]));
-            updateAndWaitForAllServosToStop();
-        }
-    }
+    // void swingAround(int rotations = 5) {
+    //     int increment = 5;
+    //     double heights[6] = {1, -1, 0.5, -0.5, 0.25, -0.25};
+    //     for (int i = 0, j = 0; i < 360*rotations ; i += increment, j++) {
+    //         int wait = max(leg(FRONT*LEFT)->gCircleTo(0 + i, heights[j%6]), leg(BACK*RIGHT)->gCircleTo(0 + i, heights[(j+1)%6]));
+    //         wait = max(leg(MID*LEFT)->gCircleTo(20 + i, heights[(j+2)%6]), leg(MID*RIGHT)->gCircleTo(20 + i, heights[(j+3)%6]));
+    //         wait = max(leg(BACK*LEFT)->gCircleTo(40 + i , heights[(j+4)%6]), leg(FRONT*RIGHT)->gCircleTo(40 + i , heights[(j+5)%6]));
+    //         updateAndWaitForAllServosToStop();
+    //     }
+    // }
 
     void tripodgait(int angle = 0) {
         Leg *tripods[2][3] =   {{leg(FRONT*RIGHT), leg(BACK*RIGHT), leg(MID*LEFT)},
@@ -209,7 +229,7 @@ class Body {
             int wait1 = 0;
             for (int j = 0; j < 3; j++) {
                 wait = tripods[lead][j]->goToRel(pos(0, 0, 5));
-                wait1 = tripods[1-lead][j]->goToRel(pos(0, 0, 1));
+                wait1 = tripods[1-lead][j]->goToRel(pos(0, 0, 0));
                 wait = max(wait, wait1);
             }
             synchronizeAllServosStartAndWaitForAllServosToStop();
@@ -244,6 +264,27 @@ class Body {
         }
     }
 
+    void waveturn(int angle = 0) {
+        Leg *wave[6] = {leg(FRONT*RIGHT), leg(MID*RIGHT), leg(BACK*RIGHT), 
+                        leg(BACK*LEFT), leg(MID*LEFT), leg(FRONT*LEFT)}; 
+        int wait, wait1, wait2;
+
+        for (int i = 0; i < 2*10; i++) {
+            for (int j = 0; j < 6; j++) {
+                wait = wave[j]->legTurn(-angle);
+            }
+            synchronizeAllServosStartAndWaitForAllServosToStop();
+            for (int j = 0; j < 6; j++) {
+                wait = wave[j]->raiseLeg();
+                synchronizeAllServosStartAndWaitForAllServosToStop();
+                wait1 = wave[j]->legTurn(angle);
+                synchronizeAllServosStartAndWaitForAllServosToStop();
+                wait2 = wave[j]->lowerLeg();
+                synchronizeAllServosStartAndWaitForAllServosToStop();
+            }
+        }
+    }
+
     void stance() {
         int ret = leg(FRONT*RIGHT)->stance();
         int ret1 = leg(MID*RIGHT)->stance();
@@ -258,6 +299,33 @@ class Body {
         ret = max(ret, ret5);
         updateAndWaitForAllServosToStop();
         // delay(ret);
+    }
+
+    void tripodturnonspot(double angle = 15) {
+        Leg *tripods[2][3] =   {{leg(FRONT*RIGHT), leg(BACK*RIGHT), leg(MID*LEFT)},
+                                {leg(FRONT*LEFT), leg(BACK*LEFT), leg(MID*RIGHT)}
+                            };
+        int lead = 0;
+        for (int i = 0; i < 2*10; i++) {
+            int wait = 0;
+            int wait1 = 0;
+            for (int j = 0; j < 3; j++) {
+                wait = tripods[lead][j]->raiseLeg();
+                wait1 = tripods[1-lead][j]->lowerLeg();
+                wait = max(wait, wait1);
+            }
+            synchronizeAllServosStartAndWaitForAllServosToStop();
+            wait = 0;
+            wait1 = 0;
+            for (int j = 0; j < 3; j++) {
+                wait = tripods[lead][j]->legTurn(angle);
+                wait1 = tripods[1-lead][j]->legTurn(-angle);
+                wait = max(wait, wait1);
+            }
+            synchronizeAllServosStartAndWaitForAllServosToStop();
+            lead = 1 - lead;
+
+        }
     }
 
     void servoChecks() {
