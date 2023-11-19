@@ -265,8 +265,8 @@ class Body {
     }
 
     void waveturn(int angle = 0) {
-        Leg *wave[6] = {leg(FRONT*RIGHT), leg(MID*RIGHT), leg(BACK*RIGHT), 
-                        leg(BACK*LEFT), leg(MID*LEFT), leg(FRONT*LEFT)}; 
+        Leg *wave[6] = {leg(FRONT*RIGHT), leg(MID*RIGHT), leg(BACK*RIGHT),
+                        leg(BACK*LEFT), leg(MID*LEFT), leg(FRONT*LEFT)};
         int wait, wait1, wait2;
 
         for (int i = 0; i < 2*10; i++) {
