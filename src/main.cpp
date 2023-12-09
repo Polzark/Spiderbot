@@ -128,8 +128,9 @@ void showData() {
 }
 
 void loop() {
-      bot.tripodturnonspot(45);
-      delay(1000);
+    bot.tripodgait(45);
+    bot.stance();
+    delay(1000);
 
 //     getData();
 //     showData();

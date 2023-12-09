@@ -192,7 +192,7 @@ class Body {
                                 {leg(FRONT*LEFT), leg(BACK*LEFT), leg(MID*RIGHT)}
                             };
         int lead = 0;
-        for (int i = 0; i < 2*1; i++) {
+        for (int i = 0; i < 2*10; i++) {
             int wait = 0;
             int wait1 = 0;
             for (int j = 0; j < 3; j++) {
