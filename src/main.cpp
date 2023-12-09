@@ -181,10 +181,10 @@ void loop() {
     //     bot.tripodgait(90 - heading);
     //   // delay(1000);
     // }
-    bot.tripodturn(true);
-    Serial.print("turn");
+    bot.tripodgait(45);
+    delay(3000);
+    bot.stance();
     delay(1000);
- 
 }
 
 void startuplights(FastLED_NeoPixel<NUM_LEDS, DATA_PIN, NEO_GRB> strip) {

@@ -16,7 +16,6 @@
 #define RIGHT 1
 
 #define SERVO_SPEED 3 // milliseconds per degree: currently placeholder
-#define ANGLE_SPEED 15
 
 // Ellipse constants
 #define ELLIPSE_SPEED 1
@@ -66,7 +65,7 @@ class Leg {
     Joint *knee;
     Joint *ankle;
     int planeAngle = 0; //from horizontal
-    pos defaultPos =  pos(0, 6.4, -13); // centre of gcircle
+    pos defaultPos =  pos(0, 6.4, -5.9); // centre of gcircle
     int previous = 0;
     int radius = 8.9;
 
@@ -155,7 +154,7 @@ class Leg {
     }
 
     int stance() {
-        return goTo(defaultPos + pos(0, 5, 0));
+        return goTo(defaultPos);
     }
 };
 
@@ -243,7 +242,6 @@ class Body {
             lead = 1 - lead;
 
         }
-        8.9 + 6.4;
     }
 
     void wavegait(int angle = 0) {
