@@ -128,10 +128,7 @@ void showData() {
 }
 
 void loop() {
-    bot.tripodgait(45);
-    bot.stance();
-    delay(1000);
-
+    bot.servoChecks();
 //     getData();
 //     showData();
 //     // bot.stance();
