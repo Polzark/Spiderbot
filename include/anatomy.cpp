@@ -144,6 +144,21 @@ class Leg {
         goToRel(coordinate);
     }
 
+    void Turn (double angle, int z = 0) {
+        if (id == (FRONT * RIGHT) || id == (BACK * LEFT)) {
+            angle = -45 + angle;
+        } else if (id == (FRONT * LEFT) || id == (BACK * RIGHT)){
+            angle = 45 + angle;
+            Serial.print(id);
+            Serial.println(angle);
+        }
+        angle += planeAngle;
+        while (angle <= -180) angle += 360;
+        while (angle > 180) angle -= 360;
+        previous = angle;
+        goTo(defaultPos + pos(G_CIRCLE_RADIUS*cos((PI/180)*angle),G_CIRCLE_RADIUS*sin((PI/180)*angle),z));
+    }
+
     void stance() {
         goTo(defaultPos);
     }
@@ -229,8 +244,28 @@ class Body {
 
         // }
         double radius = BODY_RADIUS + 6.4;
-        double angle = acos(G_CIRCLE_RADIUS * G_CIRCLE_RADIUS / (2 * G_CIRCLE_RADIUS * radius));
+        double angle = 90 - acos(G_CIRCLE_RADIUS * G_CIRCLE_RADIUS / (2 * G_CIRCLE_RADIUS * radius)) * 180/PI;
+        angle = -angle;
+        if (!left) {
+            angle = 180 - angle;
+        }
+        Serial.print("a");
+        Serial.println(angle);
+        int lead = 0;
+        for (int i = 0; i < 2*10; i++) {
+            for (int j = 0; j < 3; j++) {
+                tripods[lead][j]->goToRel(pos(0, 0, 5));
+                tripods[1-lead][j]->goToRel(pos(0, 0, 1));
+            }
+            synchronizeAllServosStartAndWaitForAllServosToStop();
 
+            for (int j = 0; j < 3; j++) {
+                tripods[lead][j]->Turn(angle);
+                tripods[1-lead][j]->Turn(angle - 180);
+            }
+            synchronizeAllServosStartAndWaitForAllServosToStop();
+            lead = 1 - lead;
+        }
     }
 
     // void wavegait(int angle = 0) {

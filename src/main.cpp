@@ -181,7 +181,7 @@ void loop() {
     //     bot.tripodgait(90 - heading);
     //   // delay(1000);
     // }
-    bot.tripodgait(0);
+    bot.tripodturn(true);
     delay(1000);
 }
 
