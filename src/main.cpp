@@ -181,10 +181,12 @@ void loop() {
     //     bot.tripodgait(90 - heading);
     //   // delay(1000);
     // }
-    bot.tripodturn(true);
+    bot.tripodgait(0);
+    // bot.stance();
+    // synchronizeAllServosStartAndWaitForAllServosToStop();
     delay(1000);
-}
-
+};
+     
 void startuplights(FastLED_NeoPixel<NUM_LEDS, DATA_PIN, NEO_GRB> strip) {
   // int blinkdelay = 250;
   for (int i = 0; i <3;i++){
