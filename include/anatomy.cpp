@@ -16,7 +16,7 @@
 #define RIGHT 1
 
 // Ellipse constants
-#define ELLIPSE_SPEED 1
+#define ELLIPSE_SPEED 2
 #define LR_ELLIPSE G_CIRCLE_RADIUS
 #define SR_ELLIPSE 3
 
@@ -129,14 +129,13 @@ class Leg {
         angle += multiplier*planeAngle;
         while (angle <= -180) angle += 360;
         while (angle > 180) angle -= 360;
-
         double t = time * PI/500 * ELLIPSE_SPEED;
         // calculat z coordinate and x + y coordinates using 2d parametric equation
-        double z = SR_ELLIPSE * cos(t);
-        double xAndY = LR_ELLIPSE * sin(t);
+        double z = SR_ELLIPSE * -sin(t);
+        double xAndY = LR_ELLIPSE * cos(t);
         // then use x + y coordinate and angle to calculate x and y coordinates
-        double x = xAndY * cos(angle);
-        double y = xAndY * -sin(angle);
+        double x = xAndY * cos(angle * PI/180);
+        double y = xAndY * sin(angle * PI/180);
         // return pos(x,y,z)
         pos coordinate = pos(x, y, z);
         // then call goToRel
@@ -185,7 +184,7 @@ class Body {
     // }
 
     void tripodgait(int angle = 0) {
-        Leg *tripods[2][3] =   {{leg(FRONT*RIGHT), leg(BACK*RIGHT), leg(MID*LEFT)},
+        Leg *tripods[2][3] =   {{leg(MID*RIGHT), leg(BACK*RIGHT), leg(MID*LEFT)},
                                 {leg(FRONT*LEFT), leg(BACK*LEFT), leg(MID*RIGHT)}
                             };
         int lead = 0;
@@ -194,6 +193,9 @@ class Body {
 
         while(t > 0) {
             double time = t - start;
+            if (time > 3000) {
+                break;
+            }
             for (int j = 0; j < 3; j++) {
                 tripods[lead][j]->ellipseTo(time, angle);
                 tripods[1-lead][j]->ellipseTo(time + 500/ELLIPSE_SPEED, angle);
