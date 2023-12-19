@@ -15,9 +15,13 @@
 #define LEFT  -1
 #define RIGHT 1
 
-#define SERVO_SPEED 3 // milliseconds per degree: currently placeholder
-#define ANGLE_SPEED 15
+// Ellipse constants
+#define ELLIPSE_SPEED 2
+#define LR_ELLIPSE G_CIRCLE_RADIUS
+#define SR_ELLIPSE 3
 
+#define TURNING_ANGLE 9
+#define BODY_RADIUS 8.6
 // custom servo wrapper class
 class Joint {
   public:
@@ -31,13 +35,12 @@ class Joint {
     Joint(int id, int info[4])
     : id(id), rangeDown(info[3]), rangeUp(info[2]), flatAngle(info[1]) {
         servo.attach(info[0]);
-        //servo.setSpeed(1000/SERVO_SPEED);
         setSpeedForAllServos(360);
         prev = 0; // can change this doesn't matter
         // write(flatAngle);
     }
 
-    int write(double angle) {
+    void write(double angle) {
         angle = flatAngle + angle;
         if (angle < rangeDown) {
             angle = rangeDown;
@@ -47,10 +50,7 @@ class Joint {
         }
         servo.setEasingType(EASE_CUBIC_IN_OUT);
         servo.setEaseTo((float)angle);
-        int distance = abs(angle - prev);
         prev = angle;
-
-        return distance * SERVO_SPEED;
     }
 };
 
@@ -64,6 +64,7 @@ class Leg {
     pos defaultPos =  pos(0, 6.4, -5.9); // centre of gcircle
     pos previousPos = pos(0, 0, 0);
     int previous = 0;
+    int radius = 8.9;
 
 
     Leg(int id, int info[3][4])
@@ -73,30 +74,25 @@ class Leg {
         ankle = new Joint(id*ANKLE, info[2]);
 
         if (abs(id) == FRONT) {
-            planeAngle = 60;
+            planeAngle = 45;
         } else if (abs(id) == BACK) {
-            planeAngle = -60;
+            planeAngle = -45;
         }
     }
 
-    int goTo(pos dest) {
+    void goTo(pos dest) {
         // if (id < 0) {
         //     dest = pos(-dest.x, -dest.y, dest.z);
         // }
         pos angles = InvK::getAngles(dest);
         angles.x = -angles.x;
 
-        int ret = hip->write(angles.x);
-        int ret1 = knee->write(angles.y);
-        int ret2 = ankle->write(angles.z);
-
-        ret = max(ret1, ret);
-        ret = max(ret, ret2);
-        previousPos = dest;
-        return ret;
+        hip->write(angles.x);
+        knee->write(angles.y);
+        ankle->write(angles.z);
     }
 
-    int gCircleTo(int angle, int z = 0) {
+    void gCircleTo(int angle, int z = 0) {
         int multiplier = 1;
         if (id < 0) {
             angle -=180;
@@ -106,44 +102,49 @@ class Leg {
         while (angle <= -180) angle += 360;
         while (angle > 180) angle -= 360;
         previous = angle;
-        return goTo(defaultPos + pos(G_CIRCLE_RADIUS*cos((PI/180)*angle),G_CIRCLE_RADIUS*sin((PI/180)*angle),z));
+        goTo(defaultPos + pos(G_CIRCLE_RADIUS*cos((PI/180)*angle),G_CIRCLE_RADIUS*sin((PI/180)*angle),z));
     }
 
-    int gCircleTurn(int angle, int z = 0) {
-        angle += planeAngle;
+    void gCircleTurn(int angle, int z = 0) {
         while (angle <= -180) angle += 360;
         while (angle > 180) angle -= 360;
         previous = angle;
-        return goTo(defaultPos + pos(G_CIRCLE_RADIUS*cos((PI/180)*angle),G_CIRCLE_RADIUS*sin((PI/180)*angle),z));
+        goTo(defaultPos + pos(G_CIRCLE_RADIUS*cos((PI/180)*angle),G_CIRCLE_RADIUS*sin((PI/180)*angle),z));
     }
 
-    int goToRel(pos dest) {
-        return goTo(defaultPos + dest);
+    void goToRel(pos dest) {
+        goTo(defaultPos + dest);
     }
 
-    int gCircleRel(int angle) {
-        return gCircleTo(angle + previous);
+    void gCircleRel(int angle) {
+        gCircleTo(angle + previous);
     }
 
-    int stance() {
-        return goTo(defaultPos);
-    }
-
-    int legTurn(int angle) {
-        //angle += planeAngle;
+    // ellipseTo takes in time and direction and returns the position on the ellipse
+    void ellipseTo(double time, int angle) {
+        int multiplier = 1;
+        if (id < 0) {
+            angle -=180;
+            multiplier = -1;
+        }
+        angle += multiplier*planeAngle;
         while (angle <= -180) angle += 360;
         while (angle > 180) angle -= 360;
-        return goTo(pos(BOT_RADIUS*sin((PI/180)*angle), BOT_RADIUS*cos((PI/180)*angle), previousPos.z));
+        double t = time * PI/500 * ELLIPSE_SPEED;
+        // calculat z coordinate and x + y coordinates using 2d parametric equation
+        double z = SR_ELLIPSE * -sin(t);
+        double xAndY = LR_ELLIPSE * cos(t);
+        // then use x + y coordinate and angle to calculate x and y coordinates
+        double x = xAndY * cos(angle * PI/180);
+        double y = xAndY * sin(angle * PI/180);
+        // return pos(x,y,z)
+        pos coordinate = pos(x, y, z);
+        // then call goToRel
+        goToRel(coordinate);
     }
 
-    int lowerLeg() {
-        double previousToBot = tanh(previousPos.y/previousPos.x);
-        return goTo(pos(BOT_RADIUS*sin((PI/180)*previousToBot), BOT_RADIUS*cos((PI/180)*previousToBot), defaultPos.z));
-    }
-
-    int raiseLeg() {
-        double previousToBot = tanh(previousPos.y/previousPos.x);
-        return goTo(pos(BOT_RADIUS*sin((PI/180)*previousToBot), BOT_RADIUS*cos((PI/180)*previousToBot), defaultPos.z + 5));
+    void stance() {
+        goTo(defaultPos);
     }
 
 
@@ -188,182 +189,84 @@ class Body {
     // }
 
     void tripodgait(int angle = 0) {
-        Leg *tripods[2][3] =   {{leg(FRONT*RIGHT), leg(BACK*RIGHT), leg(MID*LEFT)},
+        Leg *tripods[2][3] =   {{leg(MID*RIGHT), leg(BACK*RIGHT), leg(MID*LEFT)},
                                 {leg(FRONT*LEFT), leg(BACK*LEFT), leg(MID*RIGHT)}
                             };
         int lead = 0;
-        for (int i = 0; i < 2*10; i++) {
-            int wait = 0;
-            int wait1 = 0;
-            for (int j = 0; j < 3; j++) {
-                wait = tripods[lead][j]->goToRel(pos(0, 0, 5));
-                wait1 = tripods[1-lead][j]->stance();
-                wait = max(wait, wait1);
-            }
-            synchronizeAllServosStartAndWaitForAllServosToStop();
-            wait = 0;
-            wait1 = 0;
-            for (int j = 0; j < 3; j++) {
-                wait = tripods[lead][j]->gCircleTo(angle);
-                wait1 = tripods[1-lead][j]->gCircleTo(angle - 180);
-                wait = max(wait, wait1);
-            }
-            synchronizeAllServosStartAndWaitForAllServosToStop();
-            // delay(wait);
-            lead = 1 - lead;
+        double start = millis();
+        double t = millis();
 
+        while(t > 0) {
+            double time = t - start;
+            if (time > 3000) {
+                break;
+            }
+            for (int j = 0; j < 3; j++) {
+                tripods[lead][j]->ellipseTo(time, angle);
+                tripods[1-lead][j]->ellipseTo(time + 500/ELLIPSE_SPEED, angle);
+            }
+            synchronizeAllServosStartAndWaitForAllServosToStop();
+            t = millis();
         }
     }
 
     void tripodturn(boolean left) {
-        double angle = 180;
-        if (left) {
-            angle = 0;
-        }
+
         Leg *tripods[2][3] =   {{leg(FRONT*RIGHT), leg(BACK*RIGHT), leg(MID*LEFT)},
                                 {leg(FRONT*LEFT), leg(BACK*LEFT), leg(MID*RIGHT)}
                             };
+
+        double radius = BODY_RADIUS + 6.4;
+        double angle = 90 - acos(G_CIRCLE_RADIUS * G_CIRCLE_RADIUS / (2 * G_CIRCLE_RADIUS * radius)) * 180/PI;
+        angle = -angle;
+        if (!left) {
+            angle = 180 - angle;
+        }
+
         int lead = 0;
-        for (int i = 0; i < 2; i++) {
-            int wait = 0;
-            int wait1 = 0;
+        for (int i = 0; i < 2*10; i++) {
             for (int j = 0; j < 3; j++) {
-                wait = tripods[lead][j]->goToRel(pos(0, 0, 5));
-                wait1 = tripods[1-lead][j]->goToRel(pos(0, 0, 0));
-                wait = max(wait, wait1);
+                tripods[lead][j]->goToRel(pos(0, 0, 5));
+                tripods[1-lead][j]->goToRel(pos(0, 0, 1));
             }
             synchronizeAllServosStartAndWaitForAllServosToStop();
-            wait = 0;
-            wait1 = 0;
+
             for (int j = 0; j < 3; j++) {
-                wait = tripods[lead][j]->gCircleTurn(angle);
-                wait1 = tripods[1-lead][j]->gCircleTurn(angle - 180);
-                wait = max(wait, wait1);
+                tripods[lead][j]->gCircleTurn(angle);
+                tripods[1-lead][j]->gCircleTurn(angle - 180);
             }
             synchronizeAllServosStartAndWaitForAllServosToStop();
             lead = 1 - lead;
-
         }
     }
 
-    void wavegait(int angle = 0) {
-        Leg *wave[6] = {leg(FRONT*RIGHT), leg(MID*RIGHT), leg(BACK*RIGHT),
-                        leg(BACK*LEFT), leg(MID*LEFT), leg(FRONT*LEFT)};
-        for (int i = 0; i < 6; i++) {
-            delay(wave[i]->goToRel(pos(0,0,5)));
-            int wait = wave[i]->gCircleTo(180 - angle);
-            int wait1 = 0;
-            for (int j = 0; j < 6; j++) {
-                if (wave[j] != wave[i]) {
-                    int current = wave[j]->gCircleRel(-180/6);
-                    wait1 = max(current, wait1);
-                }
-            }
-            wait = max(wait, wait1);
-            delay(wait);
-        }
-    }
-
-    void waveturn(int angle = 0) {
-        Leg *wave[6] = {leg(FRONT*RIGHT), leg(MID*RIGHT), leg(BACK*RIGHT),
-                        leg(BACK*LEFT), leg(MID*LEFT), leg(FRONT*LEFT)};
-        int wait, wait1, wait2;
-
-        for (int i = 0; i < 2*10; i++) {
-            for (int j = 0; j < 6; j++) {
-                wait = wave[j]->legTurn(-angle);
-            }
-            synchronizeAllServosStartAndWaitForAllServosToStop();
-            for (int j = 0; j < 6; j++) {
-                wait = wave[j]->raiseLeg();
-                synchronizeAllServosStartAndWaitForAllServosToStop();
-                wait1 = wave[j]->legTurn(angle);
-                synchronizeAllServosStartAndWaitForAllServosToStop();
-                wait2 = wave[j]->lowerLeg();
-                synchronizeAllServosStartAndWaitForAllServosToStop();
-            }
-        }
-    }
+    // void wavegait(int angle = 0) {
+    //     Leg *wave[6] = {leg(FRONT*RIGHT), leg(MID*RIGHT), leg(BACK*RIGHT), 
+    //                     leg(BACK*LEFT), leg(MID*LEFT), leg(FRONT*LEFT)}; 
+    //     for (int i = 0; i < 6; i++) {
+    //         delay(wave[i]->goToRel(pos(0,0,5)));
+    //         int wait = wave[i]->gCircleTo(180 - angle);
+    //         int wait1 = 0;
+    //         for (int j = 0; j < 6; j++) {
+    //             if (wave[j] != wave[i]) {
+    //                 int current = wave[j]->gCircleRel(-180/6);
+    //                 wait1 = max(current, wait1);
+    //             }
+    //         }
+    //         wait = max(wait, wait1);
+    //         delay(wait);
+    //     }
+    // }
 
     void stance() {
-        int ret = leg(FRONT*RIGHT)->stance();
-        int ret1 = leg(MID*RIGHT)->stance();
-        int ret2 = leg(BACK*RIGHT)->stance();
-        int ret3 = leg(FRONT*LEFT)->stance();
-        int ret4 = leg(MID*LEFT)->stance();
-        int ret5 = leg(BACK*LEFT)->stance();
-        ret = max(ret, ret1);
-        ret = max(ret, ret2);
-        ret = max(ret, ret3);
-        ret = max(ret, ret4);
-        ret = max(ret, ret5);
-        updateAndWaitForAllServosToStop();
-        // delay(ret);
-    }
-
-    void tripodturnonspot(double angle = 15) {
-        Leg *tripods[2][3] =   {{leg(FRONT*RIGHT), leg(BACK*RIGHT), leg(MID*LEFT)},
-                                {leg(FRONT*LEFT), leg(BACK*LEFT), leg(MID*RIGHT)}
-                            };
-        int lead = 0;
-        for (int i = 0; i < 2*10; i++) {
-            int wait = 0;
-            int wait1 = 0;
-            for (int j = 0; j < 3; j++) {
-                wait = tripods[lead][j]->raiseLeg();
-                wait1 = tripods[1-lead][j]->lowerLeg();
-                wait = max(wait, wait1);
-            }
-            synchronizeAllServosStartAndWaitForAllServosToStop();
-            wait = 0;
-            wait1 = 0;
-            for (int j = 0; j < 3; j++) {
-                wait = tripods[lead][j]->legTurn(angle);
-                wait1 = tripods[1-lead][j]->legTurn(-angle);
-                wait = max(wait, wait1);
-            }
-            synchronizeAllServosStartAndWaitForAllServosToStop();
-            lead = 1 - lead;
-
-        }
-    }
-
-    void servoChecks() {
-        // moves all servos at the same leg position at the same time
-        Leg *test [6] = { leg(FRONT*RIGHT), leg(MID*RIGHT), leg(BACK*RIGHT), leg(FRONT*LEFT), leg(MID*LEFT), leg(BACK*LEFT)};
-
-        for (int i = 0; i < 6; i++) {
-            test[i]->ankle->write(-180);
-        }
+        leg(FRONT*RIGHT)->stance();
+        leg(MID*RIGHT)->stance();
+        leg(BACK*RIGHT)->stance();
+        leg(FRONT*LEFT)->stance();
+        leg(MID*LEFT)->stance();
+        leg(BACK*LEFT)->stance();
+        
         synchronizeAllServosStartAndWaitForAllServosToStop();
-        delay(1000);
-        for (int i = 0; i < 6; i++) {
-            test[i]->ankle->write(180);
-        }
-        synchronizeAllServosStartAndWaitForAllServosToStop();
-        delay(1000);
-
-        for (int i = 0; i < 6; i++) {
-            test[i]->knee->write(-180);
-        }
-        synchronizeAllServosStartAndWaitForAllServosToStop();
-        delay(1000);
-        for (int i = 0; i < 6; i++) {
-            test[i]->knee->write(180);
-        }
-        synchronizeAllServosStartAndWaitForAllServosToStop();
-        delay(1000);
-
-        for (int i = 0; i < 6; i++) {
-            test[i]->hip->write(-180);
-        }
-        synchronizeAllServosStartAndWaitForAllServosToStop();
-        delay(1000);
-        for (int i = 0; i < 6; i++) {
-            test[i]->hip->write(180);
-        }
-        synchronizeAllServosStartAndWaitForAllServosToStop();
-        delay(1000);
     }
 
 };

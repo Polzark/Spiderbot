@@ -128,7 +128,6 @@ void showData() {
 }
 
 void loop() {
-    bot.servoChecks();
 //     getData();
 //     showData();
 //     // bot.stance();
@@ -139,61 +138,36 @@ void loop() {
 //     double y = data.y;
 //     x -= 130;
 //     y -= 129;
-
-//     // trig bs
-//     if (x != 0) {
-//       heading = atan(y / x) * 180/PI;
-//     } else if (y < 0) {
-//       heading = 270;
-//       strip.setPixelColor(2, red);
-//       strip.setPixelColor(3, black);
-//       strip.show();
-//     } else if (y == 0) {
-//       bot.stance();
-//       Serial.println("Standstill");
-//       heading = -100;
-//       strip.setPixelColor(2, pink_questionmark);
-//       strip.setPixelColor(3, pink_questionmark);
-//       strip.show();
-//       // loop();
-//     } else {
-//       heading = 90;
-//       strip.setPixelColor(2, black);
-//       strip.setPixelColor(3, red);
-//       strip.show();
-//     }
-
-//     if (x < 0) {
-//       heading += 180;
-//     }
-//     if (heading != -100) {
-
-//       // Serial.print(x);
-//       // Serial.print(" ");
-//       // Serial.print(y);
-//       // Serial.print(" ");
-//       // Serial.print(data.c);
-//       // Serial.print(" ");
-//       // Serial.print(data.z);
-//       // Serial.print(" ");
-
-//       Serial.print("Heading: ");
-//       Serial.println(180 - heading);
-//       if (data.c == 1 && x != 0) {
-//         Serial.println("Turn in place");
-//         bot.tripodturn(x < 0);
-//         strip.setPixelColor(1, pink_questionmark);
-//         // heading = -100;
-//         strip.show();
-//       } else {
-//         head.write(max(60, min(120, 180 -heading)));
-//         bot.tripodgait(90 - heading);
-//       }
-//       head.write(max(60, min(120, 180 -heading)));
-//         bot.tripodgait(90 - heading);
-//       // delay(1000);
-//     }
-}
+    //   Serial.print(x);
+    //   Serial.print(" ");
+    //   Serial.print(y);
+    //   Serial.print(" ");
+    //   Serial.print(data.c);
+    //   Serial.print(" ");
+    //   Serial.print(data.z);
+    //   Serial.print(" ");
+    //   Serial.println(180 - heading);
+    //   if (data.c == 1 && x != 0) {
+    //     Serial.println("Turn in place");
+    //     bot.tripodturn(x < 0);
+    //     strip.setPixelColor(1, pink_questionmark);
+    //     // heading = -100;
+    //     strip.show();
+    //   } else {
+    //     head.write(max(60, min(120, 180 -heading)));
+    //     bot.tripodgait(90 - heading);
+    //   }
+    //   head.write(max(60, min(120, 180 -heading)));
+    //     bot.tripodgait(90 - heading);
+    //   // delay(1000);
+    // }
+    // bot.stance();
+    // synchronizeAllServosStartAndWaitForAllServosToStop();
+    for (int i = 0; i < 4; i++) {
+      bot.tripodgait(90 * i);
+      delay(1000);
+    }
+};
 
 void startuplights(FastLED_NeoPixel<NUM_LEDS, DATA_PIN, NEO_GRB> strip) {
   // int blinkdelay = 250;
