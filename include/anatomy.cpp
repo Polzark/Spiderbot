@@ -184,7 +184,7 @@ class Body {
     // }
 
     void tripodgait(int angle = 0) {
-        Leg *tripods[2][3] =   {{leg(MID*RIGHT), leg(BACK*RIGHT), leg(MID*LEFT)},
+        Leg *tripods[2][3] =   {{leg(FRONT*RIGHT), leg(BACK*RIGHT), leg(MID*LEFT)},
                                 {leg(FRONT*LEFT), leg(BACK*LEFT), leg(MID*RIGHT)}
                             };
         int lead = 0;
