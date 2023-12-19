@@ -269,4 +269,41 @@ class Body {
         synchronizeAllServosStartAndWaitForAllServosToStop();
     }
 
+    void servoChecks() {
+        // moves all servos at the same leg position at the same time
+        Leg *test [6] = { leg(FRONT*RIGHT), leg(MID*RIGHT), leg(BACK*RIGHT), leg(FRONT*LEFT), leg(MID*LEFT), leg(BACK*LEFT)};
+
+        for (int i = 0; i < 6; i++) {
+            test[i]->ankle->write(-180);
+        }
+        synchronizeAllServosStartAndWaitForAllServosToStop();
+        delay(1000);
+        for (int i = 0; i < 6; i++) {
+            test[i]->ankle->write(180);
+        }
+        synchronizeAllServosStartAndWaitForAllServosToStop();
+        delay(1000);
+
+        for (int i = 0; i < 6; i++) {
+            test[i]->knee->write(-180);
+        }
+        synchronizeAllServosStartAndWaitForAllServosToStop();
+        delay(1000);
+        for (int i = 0; i < 6; i++) {
+            test[i]->knee->write(180);
+        }
+        synchronizeAllServosStartAndWaitForAllServosToStop();
+        delay(1000);
+
+        for (int i = 0; i < 6; i++) {
+            test[i]->hip->write(-180);
+        }
+        synchronizeAllServosStartAndWaitForAllServosToStop();
+        delay(1000);
+        for (int i = 0; i < 6; i++) {
+            test[i]->hip->write(180);
+        }
+        synchronizeAllServosStartAndWaitForAllServosToStop();
+        delay(1000);
+    }
 };
