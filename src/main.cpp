@@ -128,7 +128,6 @@ void showData() {
 }
 
 void loop() {
-    bot.servoChecks();
 //     getData();
 //     showData();
 //     // bot.stance();
@@ -193,6 +192,11 @@ void loop() {
 //         bot.tripodgait(90 - heading);
 //       // delay(1000);
 //     }
+
+    for (int i = 0; i < 4; i++) {
+        bot.tripodgait(90 * i);
+        delay(1000);
+    }
 }
 
 void startuplights(FastLED_NeoPixel<NUM_LEDS, DATA_PIN, NEO_GRB> strip) {
