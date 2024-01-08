@@ -28,7 +28,7 @@
 
 // nunchuck stuff
 #include <Wire.h>
-#include <Nunchuk.h>
+#include "Nunchuk.h"
 
 // Defines ======================================================
 
@@ -64,7 +64,6 @@ struct Data_Package{
 Data_Package data;
 
 // code ================================================
-void send();
 
 void setup() {
 
@@ -109,14 +108,21 @@ void send() {
             //nunchuk_print();
             data.x = nunchuk_joystickX_raw();
             data.y = nunchuk_joystickY_raw(); 
+            data.c = nunchuk_buttonC();
+            data.z = nunchuk_buttonZ(); 
             Serial.print(data.x);
             Serial.print("\t ");
             Serial.print(data.y);
+            Serial.print("\t ");
+            Serial.print(data.c);
+            Serial.print("\t ");
+            Serial.print(data.z);
             
      }
 
     bool rslt;
     rslt = radio.write (&data, sizeof(data));
+    delay(20);
     //rslt = radio.write( &buttonState, sizeof(buttonState) );
     // rslt = radio.write( &dataToSend, sizeof(dataToSend) );
         // Always use sizeof() as it gives the size as the number of bytes.
